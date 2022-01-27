@@ -85,7 +85,11 @@
               export LLVM_AR="${llvmPackages.llvm}/bin/llvm-ar"
 
               export CUDA_HOME="${pkgs.cudatoolkit}"
-              export LD_LIBRARY_PATH="${pkgs.gtest}/lib:/var/run/opengl-driver/lib:$LD_LIBRARY_PATH"
+
+              # This is for NixOS, to add libcuda to path.
+              export LD_LIBRARY_PATH="/var/run/opengl-driver/lib:$LD_LIBRARY_PATH"
+
+              export LD_LIBRARY_PATH="${pkgs.gtest}/lib:$LD_LIBRARY_PATH"
 
               exec fish --init-command='source ${./prompt.fish}'
             '';
