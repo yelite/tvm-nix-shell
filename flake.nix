@@ -42,20 +42,26 @@
         devShell = pkgs.mkShell
           {
             name = "tvm-shell";
-            packages = with pkgs; [
+            nativeBuildInputs = with pkgs; [
               pkg-config
               cmake
               ccache
-              gtest
-              python38
-              wasmtime
-              wabt
+            ] ++ rustToolchain;
+            buildInputs = with pkgs; [
               llvmPackages.llvm
               llvmPackages.libclang
-              cudatoolkit_11_5
               openssl.dev
+              gtest
+            ];
+            packages = with pkgs; [
+              python39
+              wasmtime
+              wabt
+              cudatoolkit_11_5
+
+              clang-tools # To get the latest clangd
             ]
-            ++ (with pkgs.python38Packages;
+            ++ (with pkgs.python39Packages;
               [
                 pip
                 setuptools
@@ -69,8 +75,7 @@
                 pytest
                 pillow
                 mxnet
-              ])
-            ++ rustToolchain;
+              ]);
 
             shellHook = ''
               export TVM_HOME=$(pwd)/tvm
@@ -86,10 +91,11 @@
 
               export CUDA_HOME="${pkgs.cudatoolkit}"
 
-              # This is for NixOS, to add libcuda to path.
+              # This is for NixOS, to add libcuda to ld path.
               export LD_LIBRARY_PATH="/var/run/opengl-driver/lib:$LD_LIBRARY_PATH"
 
-              export LD_LIBRARY_PATH="${pkgs.gtest}/lib:$LD_LIBRARY_PATH"
+              # Make sure we get the latest clangd
+              export PATH="${pkgs.clang-tools}/bin:$PATH";
 
               exec fish --init-command='source ${./prompt.fish}'
             '';
