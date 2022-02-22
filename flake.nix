@@ -17,15 +17,24 @@
   outputs = { self, utils, nixpkgs, ... }@inputs: utils.lib.mkFlake {
     inherit self inputs;
 
-    supportedSystems = [ "x86_64-linux" ];
+    supportedSystems = [ "x86_64-linux" "x86_64-darwin" "aarch64-darwin" ];
 
     channels.nixpkgs.input = nixpkgs;
     channels.nixpkgs.config.allowUnfree = true;
-    channels.nixpkgs.overlaysBuilder = channels: [ inputs.fenix.overlay ];
+    channels.nixpkgs.overlaysBuilder = channels: [
+      inputs.fenix.overlay
+      self.overlay
+    ];
+
+    overlay = import ./patches.nix;
+    overlays = utils.lib.exportOverlays {
+      inherit (self) pkgs inputs;
+    };
 
     outputsBuilder = channels:
       let
         pkgs = channels.nixpkgs;
+        inherit (pkgs) lib;
         rustToolchain = with pkgs; [
           (fenix.stable.withComponents [
             "cargo"
@@ -39,6 +48,7 @@
         llvmPackages = pkgs.llvmPackages_11;
       in
       {
+        packages = utils.lib.exportPackages self.overlays channels;
         devShell = pkgs.mkShell
           {
             name = "tvm-shell";
@@ -55,10 +65,6 @@
             ];
             packages = with pkgs; [
               python39
-              wasmtime
-              wabt
-              cudatoolkit_11_5
-
               clang-tools # To get the latest clangd
             ]
             ++ (with pkgs.python39Packages;
@@ -74,7 +80,14 @@
                 cloudpickle
                 pytest
                 pillow
-                mxnet
+              ])
+            ++ lib.optionals (!pkgs.stdenv.isAarch64) (with pkgs;
+              [
+                # mxnet is only used for tests and examples
+                # The current version in pkgs (1.8) has build problem on ARM
+                python39Packages.mxnet
+                wasmtime
+                wabt
               ]);
 
             shellHook = ''
@@ -88,11 +101,6 @@
 
               export BINDGEN_EXTRA_CLANG_ARGS="-isystem ${llvmPackages.clang}/resource-root/include $NIX_CFLAGS_COMPILE"
               export LLVM_AR="${llvmPackages.llvm}/bin/llvm-ar"
-
-              export CUDA_HOME="${pkgs.cudatoolkit}"
-
-              # This is for NixOS, to add libcuda to ld path.
-              export LD_LIBRARY_PATH="/var/run/opengl-driver/lib:$LD_LIBRARY_PATH"
 
               # Make sure we get the latest clangd
               export PATH="${pkgs.clang-tools}/bin:$PATH";
