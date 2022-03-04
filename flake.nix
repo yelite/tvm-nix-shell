@@ -106,7 +106,7 @@
               export PIP_PREFIX=$(pwd)/_build/pip_packages
               export PYTHONPATH="$(pwd)/synr:$TVM_HOME/python:$PIP_PREFIX/${pkgs.python38.sitePackages}:$PYTHONPATH"
               export PATH="$PIP_PREFIX/bin:$PATH"
-              export LD="${binutils_mold}/bin/ld"
+              export CXXFLAGS="-B${binutils_mold}/bin"
               unset SOURCE_DATE_EPOCH
 
               export LIBCLANG_PATH="${llvmPackages.libclang.lib}/lib"
