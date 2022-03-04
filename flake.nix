@@ -76,7 +76,6 @@
             packages = with pkgs; [
               python39
               clang-tools # To get the latest clangd
-              ipython
             ]
             ++ (with pkgs.python39Packages;
               [
@@ -91,6 +90,7 @@
                 cloudpickle
                 pytest
                 pillow
+                ipython
               ])
             ++ lib.optionals (!pkgs.stdenv.isAarch64) (with pkgs;
               [
