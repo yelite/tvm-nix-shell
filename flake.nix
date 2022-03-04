@@ -46,6 +46,15 @@
           rust-analyzer-nightly
         ];
         llvmPackages = pkgs.llvmPackages_11;
+        binutils_mold = pkgs.wrapBintoolsWith {
+          bintools = pkgs.binutils-unwrapped.overrideAttrs (old: {
+            postInstall = ''
+              rm $out/bin/ld.gold
+              rm $out/bin/ld.bfd
+              ln -sf ${pkgs.mold}/bin/mold $out/bin/ld.bfd
+            '';
+          });
+        };
       in
       {
         packages = utils.lib.exportPackages self.overlays channels;
@@ -55,6 +64,7 @@
             nativeBuildInputs = with pkgs; [
               pkg-config
               cmake
+              binutils_mold
               ccache
             ] ++ rustToolchain;
             buildInputs = with pkgs; [
@@ -95,6 +105,7 @@
               export PIP_PREFIX=$(pwd)/_build/pip_packages
               export PYTHONPATH="$(pwd)/synr:$TVM_HOME/python:$PIP_PREFIX/${pkgs.python38.sitePackages}:$PYTHONPATH"
               export PATH="$PIP_PREFIX/bin:$PATH"
+              export LD="${binutils_mold}/bin/ld"
               unset SOURCE_DATE_EPOCH
 
               export LIBCLANG_PATH="${llvmPackages.libclang.lib}/lib"
