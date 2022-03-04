@@ -76,6 +76,7 @@
             packages = with pkgs; [
               python39
               clang-tools # To get the latest clangd
+              ipython
             ]
             ++ (with pkgs.python39Packages;
               [
@@ -115,6 +116,7 @@
 
               # Make sure we get the latest clangd
               export PATH="${pkgs.clang-tools}/bin:$PATH";
+              export SHELL="fish";
 
               exec fish --init-command='source ${./prompt.fish}'
             '';
