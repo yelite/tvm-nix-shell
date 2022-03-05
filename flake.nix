@@ -34,7 +34,14 @@
     outputsBuilder = channels:
       let
         pkgs = channels.nixpkgs;
-        inherit (pkgs) lib;
+        inherit (pkgs) stdenv lib;
+        useCuda = stdenv.isLinux;
+        cudaEnv = lib.optionalString useCuda ''
+          export CUDA_HOME="${pkgs.cudatoolkit}"
+          # This is for NixOS, to add libcuda to ld path.
+          # TODO: condition this on the os type
+          export LD_LIBRARY_PATH="/var/run/opengl-driver/lib:$LD_LIBRARY_PATH"
+        '';
         rustToolchain = with pkgs; [
           (fenix.stable.withComponents [
             "cargo"
@@ -64,6 +71,7 @@
             nativeBuildInputs = with pkgs; [
               pkg-config
               cmake
+              clang
               binutils_mold
               ccache
             ] ++ rustToolchain;
@@ -92,6 +100,9 @@
                 pillow
                 ipython
               ])
+            ++ lib.optionals useCuda (with pkgs; [
+              cudatoolkit_11_5
+            ])
             ++ lib.optionals (!pkgs.stdenv.isAarch64) (with pkgs;
               [
                 # mxnet is only used for tests and examples
@@ -114,11 +125,13 @@
               export BINDGEN_EXTRA_CLANG_ARGS="-isystem ${llvmPackages.clang}/resource-root/include $NIX_CFLAGS_COMPILE"
               export LLVM_AR="${llvmPackages.llvm}/bin/llvm-ar"
 
+              ${cudaEnv}
+
               # Make sure we get the latest clangd
               export PATH="${pkgs.clang-tools}/bin:$PATH";
               export SHELL="fish";
 
-              exec fish --init-command='source ${./prompt.fish}'
+              exec fish --init-command='source ${./prompt.fish}; cd tvm'
             '';
           };
       };
