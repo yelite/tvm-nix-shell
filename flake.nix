@@ -53,15 +53,22 @@
           rust-analyzer-nightly
         ];
         llvmPackages = pkgs.llvmPackages_11;
-        binutils_mold = pkgs.wrapBintoolsWith {
+        binutils_with_mold = (pkgs.wrapBintoolsWith {
           bintools = pkgs.binutils-unwrapped.overrideAttrs (old: {
+            # Need this to trigger wrapper script
             postInstall = ''
-              rm $out/bin/ld.gold
-              rm $out/bin/ld.bfd
               ln -sf ${pkgs.mold}/bin/mold $out/bin/ld.bfd
             '';
           });
-        };
+        }).overrideAttrs (old: {
+          # Put mold back to its own place, also add libexec/mold to align with
+          # the original installation directory layout
+          postFixup = old.postFixup + ''
+            mv $out/bin/ld.bfd $out/bin/mold
+            mkdir -p $out/libexec/mold
+            ln -sf $out/bin/mold $out/libexec/mold/ld
+          '';
+        });
       in
       {
         packages = utils.lib.exportPackages self.overlays channels;
@@ -72,7 +79,7 @@
               pkg-config
               cmake
               clang
-              binutils_mold
+              binutils_with_mold
               ccache
             ] ++ rustToolchain;
             buildInputs = with pkgs; [
@@ -83,6 +90,7 @@
             ];
             packages = with pkgs; [
               python39
+              gdb
               clang-tools # To get the latest clangd
             ]
             ++ (with pkgs.python39Packages;
@@ -117,7 +125,6 @@
               export PIP_PREFIX=$(pwd)/_build/pip_packages
               export PYTHONPATH="$(pwd)/synr:$TVM_HOME/python:$PIP_PREFIX/${pkgs.python38.sitePackages}:$PYTHONPATH"
               export PATH="$PIP_PREFIX/bin:$PATH"
-              export CXXFLAGS="-B${binutils_mold}/bin"
               unset SOURCE_DATE_EPOCH
 
               export LIBCLANG_PATH="${llvmPackages.libclang.lib}/lib"
