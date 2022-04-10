@@ -75,13 +75,17 @@
         devShell = pkgs.mkShell
           {
             name = "tvm-shell";
+
             nativeBuildInputs = with pkgs; [
               pkg-config
               cmake
               clang
-              binutils_with_mold
               ccache
+            ] ++ optionals stdenv.isLinux [
+              # TODO: Remove this after mold can be built on macOS
+              binutils_with_mold
             ] ++ rustToolchain;
+
             buildInputs = with pkgs; [
               llvmPackages.llvm
               llvmPackages.libclang

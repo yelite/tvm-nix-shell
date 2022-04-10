@@ -27,6 +27,10 @@ final: prev:
               "test_whitespace_nas"
             ];
           });
+        graphviz = python-super.graphviz.overridePythonAttrs
+          (old: {
+            doCheck = !prev.stdenv.isDarwin;
+          });
       };
   };
 }
