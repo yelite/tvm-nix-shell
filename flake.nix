@@ -81,7 +81,7 @@
               cmake
               clang
               ccache
-            ] ++ optionals stdenv.isLinux [
+            ] ++ lib.optionals stdenv.isLinux [
               # TODO: Remove this after mold can be built on macOS
               binutils_with_mold
             ] ++ rustToolchain;
