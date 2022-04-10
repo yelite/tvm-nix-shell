@@ -95,6 +95,7 @@
             packages = with pkgs; [
               python39
               gdb
+              ninja
               clang-tools # To get the latest clangd
             ]
             ++ (with pkgs.python39Packages;
@@ -113,7 +114,7 @@
                 ipython
               ])
             ++ lib.optionals useCuda (with pkgs; [
-              cudatoolkit_11_5
+              cudatoolkit_11_6
             ])
             ++ lib.optionals (!pkgs.stdenv.isAarch64) (with pkgs;
               [
