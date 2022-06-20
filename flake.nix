@@ -149,9 +149,6 @@
 
               # Make sure we get the latest clangd
               export PATH="${pkgs.clang-tools}/bin:$PATH";
-              export SHELL="fish";
-
-              # exec fish --init-command='source ${./prompt.fish}; cd tvm'
             '';
           };
       };
