@@ -1,5 +1,8 @@
+.direnv
+
 tvm
 synr
+benchmark
 
 venv
 _build

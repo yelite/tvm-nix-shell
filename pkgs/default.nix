@@ -31,6 +31,7 @@ final: prev:
           (old: {
             doCheck = !prev.stdenv.isDarwin;
           });
+        torchtext = prev.callPackage ./torchtext.nix { };
       };
   };
 }

@@ -19,14 +19,19 @@
 
     supportedSystems = [ "x86_64-linux" "x86_64-darwin" "aarch64-darwin" ];
 
-    channels.nixpkgs.input = nixpkgs;
-    channels.nixpkgs.config.allowUnfree = true;
-    channels.nixpkgs.overlaysBuilder = channels: [
-      inputs.fenix.overlay
-      self.overlay
-    ];
+    channels.nixpkgs = {
+      input = nixpkgs;
+      config = {
+        allowUnfree = true;
+        cudaSupport = false;
+      };
+      overlaysBuilder = channels: [
+        inputs.fenix.overlay
+        self.overlay
+      ];
+    };
 
-    overlay = import ./patches.nix;
+    overlay = import ./pkgs;
     overlays = utils.lib.exportOverlays {
       inherit (self) pkgs inputs;
     };
@@ -97,6 +102,7 @@
               gdb
               ninja
               clang-tools # To get the latest clangd
+              git-lfs # for benchmark
             ]
             ++ (with pkgs.python39Packages;
               [
@@ -112,15 +118,17 @@
                 pytest
                 pillow
                 ipython
+                jupyter
+                opencv4 # For benchmark yolov3
+
+                pytorch
+                torchvision
               ])
             ++ lib.optionals useCuda (with pkgs; [
-              cudatoolkit_11_6
+              cudaPackages_11_6.cudatoolkit
             ])
             ++ lib.optionals (!pkgs.stdenv.isAarch64) (with pkgs;
               [
-                # mxnet is only used for tests and examples
-                # The current version in pkgs (1.8) has build problem on ARM
-                python39Packages.mxnet
                 wasmtime
                 wabt
               ]);
@@ -128,7 +136,7 @@
             shellHook = ''
               export TVM_HOME=$(pwd)/tvm
               export PIP_PREFIX=$(pwd)/_build/pip_packages
-              export PYTHONPATH="$(pwd)/synr:$TVM_HOME/python:$PIP_PREFIX/${pkgs.python38.sitePackages}:$PYTHONPATH"
+              export PYTHONPATH="$(pwd)/benchmark:$(pwd)/torchdynamo:$(pwd)/synr:$TVM_HOME/python:$PIP_PREFIX/${pkgs.python39.sitePackages}:$PYTHONPATH"
               export PATH="$PIP_PREFIX/bin:$PATH"
               unset SOURCE_DATE_EPOCH
 
@@ -143,7 +151,7 @@
               export PATH="${pkgs.clang-tools}/bin:$PATH";
               export SHELL="fish";
 
-              exec fish --init-command='source ${./prompt.fish}; cd tvm'
+              # exec fish --init-command='source ${./prompt.fish}; cd tvm'
             '';
           };
       };
