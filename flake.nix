@@ -101,7 +101,9 @@
               python39
               gdb
               ninja
+              doxygen
               clang-tools # To get the latest clangd
+              libclang
               git-lfs # for benchmark
             ]
             ++ (with pkgs.python39Packages;
@@ -123,6 +125,10 @@
 
                 pytorch
                 torchvision
+
+                black
+                mypy
+                flake8
               ])
             ++ lib.optionals useCuda (with pkgs; [
               cudaPackages_11_6.cudatoolkit
