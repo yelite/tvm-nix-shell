@@ -96,6 +96,11 @@
               llvmPackages.libclang
               openssl.dev
               gtest
+            ] ++ lib.optionals stdenv.isLinux [
+              # elftoolchain
+              (libbacktrace.override {
+                enableStatic = true;
+              })
             ];
             packages = with pkgs; [
               python39
@@ -122,8 +127,9 @@
                 ipython
                 jupyter
                 opencv4 # For benchmark yolov3
+                seaborn # For benchmark analysis
 
-                pytorch
+                pytorch-bin
                 torchvision
 
                 black
@@ -139,10 +145,12 @@
                 wabt
               ]);
 
+            hardeningDisable = [ "fortify" ];
+
             shellHook = ''
               export TVM_HOME=$(pwd)/tvm
               export PIP_PREFIX=$(pwd)/_build/pip_packages
-              export PYTHONPATH="$(pwd)/benchmark:$(pwd)/torchdynamo:$(pwd)/synr:$TVM_HOME/python:$PIP_PREFIX/${pkgs.python39.sitePackages}:$PYTHONPATH"
+              export PYTHONPATH="$(pwd)/synr:$TVM_HOME/python:$PIP_PREFIX/${pkgs.python39.sitePackages}:$PYTHONPATH"
               export PATH="$PIP_PREFIX/bin:$PATH"
               unset SOURCE_DATE_EPOCH
 
