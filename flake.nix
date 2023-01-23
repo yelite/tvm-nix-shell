@@ -58,20 +58,16 @@
           rust-analyzer-nightly
         ];
         llvmPackages = pkgs.llvmPackages_11;
-        binutils_with_mold = (pkgs.wrapBintoolsWith {
-          bintools = pkgs.binutils-unwrapped.overrideAttrs (old: {
-            # Need this to trigger wrapper script
-            postInstall = ''
-              ln -sf ${pkgs.mold}/bin/mold $out/bin/ld.bfd
-            '';
-          });
+        # Wrap mold according the snippet from https://github.com/NixOS/nixpkgs/pull/172452#issuecomment-1335903570
+        mold' = (pkgs.wrapBintoolsWith {
+          bintools = pkgs.mold;
         }).overrideAttrs (old: {
-          # Put mold back to its own place, also add libexec/mold to align with
-          # the original installation directory layout
-          postFixup = old.postFixup + ''
-            mv $out/bin/ld.bfd $out/bin/mold
-            mkdir -p $out/libexec/mold
-            ln -sf $out/bin/mold $out/libexec/mold/ld
+          installPhase = old.installPhase + ''
+            for variant in ld.mold ld64.mold; do
+              local underlying=$ldPath/$variant
+              [[ -e "$underlying" ]] || continue
+              wrap $variant ${pkgs.path}/pkgs/build-support/bintools-wrapper/ld-wrapper.sh $underlying
+            done
           '';
         });
       in
@@ -88,7 +84,7 @@
               ccache
             ] ++ lib.optionals stdenv.isLinux [
               # TODO: Remove this after mold can be built on macOS
-              binutils_with_mold
+              mold'
             ] ++ rustToolchain;
 
             buildInputs = with pkgs; [
