@@ -8,10 +8,6 @@
       url = "github:gytis-ivaskevicius/flake-utils-plus";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    fenix = {
-      url = "github:nix-community/fenix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs = { self, utils, nixpkgs, ... }@inputs: utils.lib.mkFlake {
@@ -26,7 +22,6 @@
         cudaSupport = false;
       };
       overlaysBuilder = channels: [
-        inputs.fenix.overlay
         self.overlay
       ];
     };
@@ -41,22 +36,13 @@
         pkgs = channels.nixpkgs;
         inherit (pkgs) stdenv lib;
         useCuda = stdenv.isLinux;
+        cudatoolkit = pkgs.cudaPackages_11_7.cudatoolkit;
         cudaEnv = lib.optionalString useCuda ''
-          export CUDA_HOME="${pkgs.cudatoolkit}"
+          export CUDA_HOME="${cudatoolkit}"
           # This is for NixOS, to add libcuda to ld path.
           # TODO: condition this on the os type
           export LD_LIBRARY_PATH="/var/run/opengl-driver/lib:$LD_LIBRARY_PATH"
         '';
-        rustToolchain = with pkgs; [
-          (fenix.stable.withComponents [
-            "cargo"
-            "clippy"
-            "rustfmt"
-            "rust-src"
-            "rustc"
-          ])
-          rust-analyzer-nightly
-        ];
         llvmPackages = pkgs.llvmPackages_11;
         # Wrap mold according the snippet from https://github.com/NixOS/nixpkgs/pull/172452#issuecomment-1335903570
         mold' = (pkgs.wrapBintoolsWith {
@@ -82,10 +68,12 @@
               cmake
               clang
               ccache
+              cargo
+              rustc
             ] ++ lib.optionals stdenv.isLinux [
               # TODO: Remove this after mold can be built on macOS
               mold'
-            ] ++ rustToolchain;
+            ];
 
             buildInputs = with pkgs; [
               llvmPackages.llvm
@@ -102,6 +90,9 @@
               python39
               gdb
               ninja
+              rustfmt
+              clippy
+              rust-analyzer
               doxygen
               clang-tools # To get the latest clangd
               libclang
@@ -132,9 +123,9 @@
                 mypy
                 flake8
               ])
-            ++ lib.optionals useCuda (with pkgs; [
-              cudaPackages_11_6.cudatoolkit
-            ])
+            ++ lib.optionals useCuda [
+              cudatoolkit
+            ]
             ++ lib.optionals (!pkgs.stdenv.isAarch64) (with pkgs;
               [
                 wasmtime
