@@ -1,6 +1,6 @@
 final: prev:
 {
-  elftoolchain = prev.callPackage ./elftoolchain.nix { };
+  elftoolchain = prev.callPackage ./elftoolchain { };
 
   # Wrap mold according the snippet from https://github.com/NixOS/nixpkgs/pull/172452#issuecomment-1335903570
   mold-wrapped = (prev.wrapBintoolsWith {
