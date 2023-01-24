@@ -4,8 +4,10 @@
 
   inputs = {
     nixpkgs.url = "nixpkgs/nixpkgs-unstable";
-    utils = {
-      url = "github:gytis-ivaskevicius/flake-utils-plus";
+    utils.url = "github:gytis-ivaskevicius/flake-utils-plus";
+    # Used for pytorch binary hashes
+    tvm-torchbench = {
+      url = "github:yelite/tvm-torchbench-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
@@ -39,7 +41,9 @@
 
         cudatoolkit = pkgs.cudaPackages_11_7.cudatoolkit;
         tvm-llvm = pkgs.llvmPackages_11;
-        python = pkgs.python310;
+        python = pkgs.python310.override {
+          packageOverrides = pkgs.callPackage "${inputs.tvm-torchbench}/pkgs/torch" { };
+        };
 
       in
       {
@@ -116,8 +120,12 @@
               opencv4 # For benchmark yolov3
               seaborn # For benchmark analysis
 
-              pytorch-bin
-              torchvision
+              torch-bin
+              torchvision-bin
+              torchaudio-bin
+              torchtriton-bin
+              torchtext-bin
+              torchdata-bin
             ])
             );
 
