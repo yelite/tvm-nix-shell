@@ -39,15 +39,23 @@
         inherit (pkgs) stdenv lib;
         useCuda = stdenv.isLinux;
 
-        cudatoolkit = pkgs.cudaPackages_11_7.cudatoolkit;
+        cudaPackages = pkgs.cudaPackages_11_7;
+        cudatoolkit = cudaPackages.cudatoolkit;
         tvm-llvm = pkgs.llvmPackages_11;
         python = pkgs.python310.override {
-          packageOverrides = pkgs.callPackage "${inputs.tvm-torchbench}/pkgs/torch" { };
+          packageOverrides = lib.composeManyExtensions [
+            (pkgs.callPackage "${inputs.tvm-torchbench}/pkgs/torch" { })
+            (final: prev: {
+              onnx-graphsurgeon = final.callPackage ./pkgs/onnx-graphsurgeon.nix { };
+            })
+          ];
         };
 
       in
       {
-        packages = utils.lib.exportPackages self.overlays channels;
+        packages = utils.lib.exportPackages self.overlays channels // {
+          onnx-graphsurgeon = python.pkgs.onnx-graphsurgeon;
+        };
 
         devShell = pkgs.mkShell
           {
@@ -75,6 +83,8 @@
               gtest
             ] ++ lib.optionals stdenv.isLinux [
               # elftoolchain
+            ] ++ lib.optionals useCuda [
+              cudatoolkit
             ];
 
             packages = with pkgs; ([
@@ -88,7 +98,6 @@
               git-lfs # for benchmark
             ]
             ++ lib.optionals useCuda [
-              cudatoolkit
             ]
             ++ lib.optionals stdenv.isLinux [
               gdb
@@ -107,6 +116,8 @@
               psutil
               xgboost
               cloudpickle
+              onnxruntime
+              onnx-graphsurgeon
               pytest
               pillow
               ipython
@@ -114,6 +125,7 @@
               black
               mypy
               flake8
+              pylint
             ]
             ++ lib.optional stdenv.isLinux [
               jupyter
