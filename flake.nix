@@ -5,11 +5,6 @@
   inputs = {
     nixpkgs.url = "nixpkgs/nixpkgs-unstable";
     utils.url = "github:gytis-ivaskevicius/flake-utils-plus";
-    # Used for pytorch binary hashes
-    tvm-torchbench = {
-      url = "github:yelite/tvm-torchbench-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs = { self, utils, nixpkgs, ... }@inputs: utils.lib.mkFlake {
@@ -44,7 +39,6 @@
         tvm-llvm = pkgs.llvmPackages_11;
         python = pkgs.python310.override {
           packageOverrides = lib.composeManyExtensions [
-            (pkgs.callPackage "${inputs.tvm-torchbench}/pkgs/torch" { })
             (final: prev: {
               onnx-graphsurgeon = final.callPackage ./pkgs/onnx-graphsurgeon.nix { };
             })
@@ -109,6 +103,7 @@
             ++ (with python.pkgs; [
               pip
               setuptools
+              wheel
               numpy
               decorator
               attrs
@@ -126,6 +121,10 @@
               mypy
               flake8
               pylint
+
+              fastapi
+              uvicorn
+              httpx
             ]
             ++ lib.optional stdenv.isLinux [
               jupyter
@@ -133,11 +132,11 @@
               seaborn # For benchmark analysis
 
               torch-bin
-              torchvision-bin
-              torchaudio-bin
-              torchtriton-bin
-              torchtext-bin
-              torchdata-bin
+              # torchvision-bin
+              # torchaudio-bin
+              # torchtriton-bin
+              # torchtext-bin
+              # torchdata-bin
             ])
             );
 
