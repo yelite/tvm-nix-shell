@@ -7,29 +7,34 @@
     utils.url = "github:gytis-ivaskevicius/flake-utils-plus";
   };
 
-  outputs = { self, utils, nixpkgs, ... }@inputs: utils.lib.mkFlake {
-    inherit self inputs;
+  outputs = {
+    self,
+    utils,
+    nixpkgs,
+    ...
+  } @ inputs:
+    utils.lib.mkFlake {
+      inherit self inputs;
 
-    supportedSystems = [ "x86_64-linux" "x86_64-darwin" "aarch64-darwin" ];
+      supportedSystems = ["x86_64-linux" "x86_64-darwin" "aarch64-darwin"];
 
-    channels.nixpkgs = {
-      input = nixpkgs;
-      config = {
-        allowUnfree = true;
-        cudaSupport = false;
+      channels.nixpkgs = {
+        input = nixpkgs;
+        config = {
+          allowUnfree = true;
+          cudaSupport = false;
+        };
+        overlaysBuilder = channels: [
+          self.overlay
+        ];
       };
-      overlaysBuilder = channels: [
-        self.overlay
-      ];
-    };
 
-    overlay = import ./pkgs;
-    overlays = utils.lib.exportOverlays {
-      inherit (self) pkgs inputs;
-    };
+      overlay = import ./pkgs;
+      overlays = utils.lib.exportOverlays {
+        inherit (self) pkgs inputs;
+      };
 
-    outputsBuilder = channels:
-      let
+      outputsBuilder = channels: let
         pkgs = channels.nixpkgs;
         inherit (pkgs) stdenv lib;
         useCuda = stdenv.isLinux;
@@ -40,129 +45,146 @@
         python = pkgs.python310.override {
           packageOverrides = lib.composeManyExtensions [
             (final: prev: {
-              onnx-graphsurgeon = final.callPackage ./pkgs/onnx-graphsurgeon.nix { };
+              onnx-graphsurgeon = final.callPackage ./pkgs/onnx-graphsurgeon.nix {};
+              httpx-sse = final.callPackage ./pkgs/httpx-sse.nix {};
+              sse-starlette = final.callPackage ./pkgs/sse-starlette.nix {};
             })
           ];
         };
+      in {
+        packages =
+          utils.lib.exportPackages self.overlays channels
+          // {
+            onnx-graphsurgeon = python.pkgs.onnx-graphsurgeon;
+            httpx-sse = python.pkgs.httpx-sse;
+            sse-starlette = python.pkgs.sse-starlette;
+          };
 
-      in
-      {
-        packages = utils.lib.exportPackages self.overlays channels // {
-          onnx-graphsurgeon = python.pkgs.onnx-graphsurgeon;
-        };
-
-        devShell = pkgs.mkShell
+        devShell =
+          pkgs.mkShell
           {
             name = "tvm-shell";
 
-            nativeBuildInputs = with pkgs; [
-              pkg-config
-              cmake
-              ccache
-              cargo
-              rustc
-            ] ++ lib.optionals stdenv.isLinux [
-              mold-wrapped
-            ] ++ lib.optionals stdenv.isDarwin [
-              llvmPackages_14.bintools
-            ];
+            nativeBuildInputs = with pkgs;
+              [
+                pkg-config
+                cmake
+                ccache
+                cargo
+                rustc
+              ]
+              ++ lib.optionals stdenv.isLinux [
+                mold-wrapped
+              ]
+              ++ lib.optionals stdenv.isDarwin [
+                llvmPackages_14.bintools
+              ];
 
-            buildInputs = with pkgs; [
-              tvm-llvm.llvm
-              tvm-llvm.libclang
-              openssl.dev
-              (libbacktrace.override {
-                enableStatic = true;
-              })
-              gtest
-            ] ++ lib.optionals stdenv.isLinux [
-              # elftoolchain
-            ] ++ lib.optionals useCuda [
-              cudatoolkit
-            ];
+            buildInputs = with pkgs;
+              [
+                tvm-llvm.llvm
+                tvm-llvm.libclang
+                openssl.dev
+                (libbacktrace.override {
+                  enableStatic = true;
+                })
+                gtest
+              ]
+              ++ lib.optionals stdenv.isLinux [
+                # elftoolchain
+              ]
+              ++ lib.optionals useCuda [
+                cudatoolkit
+              ];
 
-            packages = with pkgs; ([
-              python
-              ninja
-              rustfmt
-              clippy
-              rust-analyzer
-              doxygen
-              clang-tools # To get the latest clangd
-              git-lfs # for benchmark
-            ]
-            ++ lib.optionals useCuda [
-            ]
-            ++ lib.optionals stdenv.isLinux [
-              gdb
-            ]
-            ++ lib.optionals (!pkgs.stdenv.isAarch64) [
-              wasmtime
-              wabt
-            ]
-            ++ (with python.pkgs; [
-              pip
-              setuptools
-              wheel
-              numpy
-              decorator
-              attrs
-              tornado
-              psutil
-              xgboost
-              cloudpickle
-              onnxruntime
-              onnx-graphsurgeon
-              pytest
-              pillow
-              ipython
+            packages = with pkgs; (
+              [
+                python
+                ninja
+                rustfmt
+                clippy
+                rust-analyzer
+                doxygen
+                clang-tools # To get the latest clangd
+                git-lfs # for benchmark
+              ]
+              ++ lib.optionals useCuda [
+              ]
+              ++ lib.optionals stdenv.isLinux [
+                gdb
+              ]
+              ++ lib.optionals (!pkgs.stdenv.isAarch64) [
+                wasmtime
+                wabt
+              ]
+              ++ (with python.pkgs;
+                [
+                  pip
+                  setuptools
+                  wheel
+                  numpy
+                  decorator
+                  attrs
+                  tornado
+                  psutil
+                  # xgboost
+                  cloudpickle
+                  onnxruntime
+                  onnx-graphsurgeon
+                  pytest
+                  pillow
+                  ipython
 
-              black
-              mypy
-              flake8
-              pylint
+                  black
+                  mypy
+                  flake8
+                  pylint
 
-              fastapi
-              uvicorn
-              httpx
-            ]
-            ++ lib.optional stdenv.isLinux [
-              jupyter
-              opencv4 # For benchmark yolov3
-              seaborn # For benchmark analysis
+                  transformers
 
-              torch-bin
-              # torchvision-bin
-              # torchaudio-bin
-              # torchtriton-bin
-              # torchtext-bin
-              # torchdata-bin
-            ])
+                  fastapi
+                  uvicorn
+                  httpx
+                  httpx-sse
+                ]
+                ++ lib.optional stdenv.isLinux [
+                  jupyter
+                  opencv4 # For benchmark yolov3
+                  seaborn # For benchmark analysis
+
+                  torch-bin
+                  # torchvision-bin
+                  # torchaudio-bin
+                  # torchtriton-bin
+                  # torchtext-bin
+                  # torchdata-bin
+                ])
             );
 
-            hardeningDisable = [ "fortify" ];
+            hardeningDisable = ["fortify"];
 
-            shellHook = ''
-              export TVM_HOME=$(pwd)/tvm
-              export PYTHONPATH="$(pwd)/synr:$TVM_HOME/python:$PYTHONPATH"
-              export PATH="$PIP_PREFIX/bin:$PATH"
-              unset SOURCE_DATE_EPOCH
+            shellHook =
+              ''
+                export TVM_HOME=$(pwd)/tvm
+                export PYTHONPATH="$(pwd)/synr:$TVM_HOME/python:$PYTHONPATH"
+                export PATH="$PIP_PREFIX/bin:$PATH"
+                unset SOURCE_DATE_EPOCH
 
-              export LIBCLANG_PATH="${tvm-llvm.libclang.lib}/lib"
+                export LIBCLANG_PATH="${tvm-llvm.libclang.lib}/lib"
 
-              export BINDGEN_EXTRA_CLANG_ARGS="-isystem ${tvm-llvm.clang}/resource-root/include $NIX_CFLAGS_COMPILE"
-              export LLVM_AR="${tvm-llvm.llvm}/bin/llvm-ar"
+                export BINDGEN_EXTRA_CLANG_ARGS="-isystem ${tvm-llvm.clang}/resource-root/include $NIX_CFLAGS_COMPILE"
+                export LLVM_AR="${tvm-llvm.llvm}/bin/llvm-ar"
 
-              # Make sure we get the latest clangd
-              export PATH="${pkgs.clang-tools}/bin:$PATH";
-            ''
-            + lib.optionalString useCuda ''
-              export CUDA_HOME="${cudatoolkit}"
-              # This is for NixOS, to add libcuda to ld path.
-              # TODO: condition this on the os type
-              export LD_LIBRARY_PATH="/var/run/opengl-driver/lib:$LD_LIBRARY_PATH"
-            '';
+                # Make sure we get the latest clangd
+                export PATH="${pkgs.clang-tools}/bin:$PATH";
+              ''
+              + lib.optionalString useCuda ''
+                export CUDA_HOME="${cudatoolkit}"
+                # This is for NixOS, to add libcuda to ld path.
+                # TODO: condition this on the os type
+                export LD_LIBRARY_PATH="/var/run/opengl-driver/lib:$LD_LIBRARY_PATH"
+              '';
           };
       };
-  };
+    };
 }
